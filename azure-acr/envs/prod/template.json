@@ -1,0 +1,55 @@
+{
+    "type": "Microsoft.App/containerApps",
+    "apiVersion": "2022-03-01",
+    "name": "nginx-app",
+    "location": "Wast US",
+    "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', parameters('managedEnvironments_cne_rev_name'))]"
+    ],
+    "identity": {
+        "type": "None"
+    },
+    "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('managedEnvironments_cne_rev_name'))]",
+        "configuration": {
+            "activeRevisionsMode": "Multiple",
+            "ingress": {
+                "external": true,
+                "targetPort": 80,
+                "transport": "Auto",
+                "traffic": [
+                    {
+                        "weight": 100,
+                        "latestRevision": true
+                    }
+                ]
+            }
+        },
+        "template": {
+            "containers": [
+                {
+                    "image": "nginx:latest",
+                    "name": "nginx",
+                    "resources": {
+                        "cpu": 0.5,
+                        "memory": "1Gi"
+                    },
+                    "volumeMounts": [
+                        {
+                            "mountPath": "/opt/test",
+                            "volumeName": "nginx-files-volume"
+                        }
+                    ]
+                }
+            ],
+            "volumes": [
+                {
+                    "name": "nginx-files-volume",
+                    "storageType": "AzureFile",
+                    "storageName": "nginx"
+                }
+            ]
+        }
+    }
+}
+

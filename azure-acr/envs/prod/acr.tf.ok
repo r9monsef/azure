@@ -1,0 +1,91 @@
+resource "azurerm_storage_account" "st" {
+  name                     = "rezashamsi"
+  location                 = var.location
+  resource_group_name      = var.resource_group_name
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_storage_share" "fileshare" {
+  name               = "nginx"
+  storage_account_id = azurerm_storage_account.st.id
+  quota              = 50
+}
+
+resource "azurerm_container_app_environment" "env" {
+  name                = "container-app-env"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
+}
+
+resource "azurerm_container_app_environment_storage" "env_storage" {
+  name                         = "nginx-storage"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  account_name                 = azurerm_storage_account.st.name
+  access_key                   = azurerm_storage_account.st.primary_access_key
+  access_mode                  = "ReadWrite"
+  share_name                   = azurerm_storage_share.fileshare.name
+}
+
+resource "azurerm_container_app" "nginx" {
+  name                         = "nginx"
+  resource_group_name          = var.resource_group_name
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  revision_mode                = "Single"
+
+  template {
+    container {
+      name   = "nginx"
+      image  = "nginx:latest"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      volume_mounts {
+        name = "nginx-storage"
+        path = "/opt/test"
+      }
+    }
+    
+    volume {
+      name           = "nginx-storage"  
+      storage_name   = "nginx-storage"          
+      storage_type   = "AzureFile"       
+    }
+    min_replicas = 1
+    max_replicas = 1
+  }
+}
+
+resource "azurerm_container_app" "nginx2" {
+  name                         = "nginx2"
+  resource_group_name          = var.resource_group_name
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  revision_mode                = "Single"
+
+  template {
+    container {
+      name   = "nginx2"
+      image  = "rezashamsimonsef/back:latest"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      volume_mounts {
+        name = "nginx-storage"
+        path = "/opt/test"
+      }
+    }
+    
+    volume {
+      name           = "nginx-storage"  
+      storage_name   = "nginx-storage"          
+      storage_type   = "AzureFile"       
+    }
+    min_replicas = 1
+    max_replicas = 1
+  }
+}
