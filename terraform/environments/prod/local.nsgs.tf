@@ -4,26 +4,46 @@ locals {
     firewall   = "10.10.1.0/24"
     web        = "10.10.3.0/24"
     biz        = "10.10.5.0/24"
-    db         = "10.10.6.0/24"
+    mssql      = "10.10.6.0/24"
     management = "10.10.7.0/24"
   }
 
-  # آی‌پی داخلی Load Balancer لایه بیزینس (اگر استفاده می‌کنی)
   biz_ilb_ip = "10.10.5.10"
 
   ports = {
-    web_inbound = ["8080", "8089"]
-    biz_inbound = [
-      "7070", "3550", "9001", "50050", "50051", 
-      "5050", "9555", "8013", "4317", "4318", 
-      "7001", "6060", "8090", "8081"
+    web_inbound = [
+      "8080",
+      "8089"
     ]
-    db_inbound = ["5432", "6379"]
-    mgmt       = ["22", "3389"]
+
+    biz_inbound = [
+      "7070",
+      "3550",
+      "9001",
+      "50050",
+      "50051",
+      "5050",
+      "9555",
+      "8013",
+      "4317",
+      "4318",
+      "7001",
+      "6060",
+      "8090",
+      "8081"
+    ]
+
+    mgmt = [
+      "22",
+      "3389"
+    ]
   }
 
   nsgs = {
-    # --- WEB TIER NSG ---
+
+    # -------------------------------------------------
+    # WEB TIER NSG
+    # -------------------------------------------------
     web = {
       inbound = [
         {
@@ -60,9 +80,10 @@ locals {
           destination_address_prefix = "*"
         }
       ]
+
       outbound = [
         {
-          name                       = "allow-web-to-biz-ilb"
+          name                       = "allow-web-to-biz"
           priority                   = 100
           direction                  = "Outbound"
           access                     = "Allow"
@@ -70,7 +91,7 @@ locals {
           source_port_range          = "*"
           destination_port_ranges    = local.ports.biz_inbound
           source_address_prefix      = local.address_spaces.web
-          destination_address_prefix = local.address_spaces.biz # یا local.biz_ilb_ip
+          destination_address_prefix = local.address_spaces.biz
         },
         {
           name                       = "allow-outbound-to-firewall"
@@ -81,12 +102,14 @@ locals {
           source_port_range          = "*"
           destination_port_range     = "*"
           source_address_prefix      = local.address_spaces.web
-          destination_address_prefix = "0.0.0.0/0" # اجازه خروج برای بررسی در Firewall
+          destination_address_prefix = "0.0.0.0/0"
         }
       ]
     }
 
-    # --- BIZ TIER NSG ---
+    # -------------------------------------------------
+    # BIZ / APP TIER NSG
+    # -------------------------------------------------
     biz = {
       inbound = [
         {
@@ -123,17 +146,18 @@ locals {
           destination_address_prefix = "*"
         }
       ]
+
       outbound = [
         {
-          name                       = "allow-biz-to-db"
+          name                       = "allow-biz-to-mssql"
           priority                   = 100
           direction                  = "Outbound"
           access                     = "Allow"
-          protocol                   = "Tcp"
+          protocol                   = "*"
           source_port_range          = "*"
-          destination_port_ranges    = local.ports.db_inbound
+          destination_port_range     = "*"
           source_address_prefix      = local.address_spaces.biz
-          destination_address_prefix = local.address_spaces.db
+          destination_address_prefix = local.address_spaces.mssql
         },
         {
           name                       = "allow-outbound-to-firewall"
@@ -149,30 +173,25 @@ locals {
       ]
     }
 
-    # --- DB TIER NSG ---
-    db = {
+    # -------------------------------------------------
+    # MSSQL PRIVATE ENDPOINT NSG
+    #
+    # ONLY BIZ/APP SUBNET CAN ACCESS THIS SUBNET.
+    # ALL PROTOCOLS / ALL PORTS ARE ALLOWED FROM BIZ.
+    # EVERYTHING ELSE IS DENIED.
+    # -------------------------------------------------
+    mssql = {
       inbound = [
         {
-          name                       = "allow-biz-to-db"
+          name                       = "allow-biz-to-mssql"
           priority                   = 100
           direction                  = "Inbound"
           access                     = "Allow"
-          protocol                   = "Tcp"
+          protocol                   = "*"
           source_port_range          = "*"
-          destination_port_ranges    = local.ports.db_inbound
+          destination_port_range     = "*"
           source_address_prefix      = local.address_spaces.biz
-          destination_address_prefix = local.address_spaces.db
-        },
-        {
-          name                       = "allow-mgmt-to-db"
-          priority                   = 110
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_ranges    = local.ports.mgmt
-          source_address_prefix      = local.address_spaces.management
-          destination_address_prefix = local.address_spaces.db
+          destination_address_prefix = local.address_spaces.mssql
         },
         {
           name                       = "deny-all-inbound"
@@ -186,6 +205,7 @@ locals {
           destination_address_prefix = "*"
         }
       ]
+
       outbound = [
         {
           name                       = "deny-all-outbound"

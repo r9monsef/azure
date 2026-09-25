@@ -27,7 +27,7 @@ locals {
     firewall = {
       name             = "AzureFirewallSubnet"
       vnet             = "vnet-prod"
-      address_prefixes = ["10.10.1.0/26"] # از 10.10.1.0 تا 10.10.1.63
+      address_prefixes = ["10.10.1.0/26"]
       private          = false
       nsg              = null
     }
@@ -35,17 +35,17 @@ locals {
     firewall_mgmt = {
       name             = "AzureFirewallManagementSubnet"
       vnet             = "vnet-prod"
-      address_prefixes = ["10.10.1.64/26"] # از 10.10.1.64 تا 10.10.1.127
+      address_prefixes = ["10.10.1.64/26"]
       private          = false
       nsg              = null
     }
 
-    db = {
-      name             = "db-subnet-prd"
+    mssql = {
+      name             = "mssql-subnet-prd"
       vnet             = "vnet-prod"
       address_prefixes = ["10.10.6.0/24"]
-      private          = false
-      nsg              = "db"
+      private          = true
+      nsg              = "mssql"
     }
 
     management = {

@@ -30,7 +30,7 @@ module "nsgs" {
   security_rules = concat(each.value.inbound, each.value.outbound)
  # security_rules = each.value
   tags           = var.tags
-}
+}#
 
 
 
@@ -58,4 +58,13 @@ module "route_tables" {
   disable_bgp_route_propagation = try(each.value.disable_bgp_route_propagation, false)
   routes                        = each.value.routes
   tags                          = var.tags
+}
+
+
+module "mssql" {
+  source              = "../../modules/database/mssql"
+  config              = local.mssql
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  subnet_id           = module.subnets[local.mssql.subnet_key].subnet_id
 }
