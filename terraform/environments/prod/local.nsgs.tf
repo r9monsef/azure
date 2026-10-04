@@ -6,6 +6,7 @@ locals {
     biz        = "10.10.5.0/24"
     mssql      = "10.10.6.0/24"
     management = "10.10.7.0/24"
+    storage    = "10.10.10.0/24"
   }
 
   biz_ilb_ip = "10.10.5.10"
@@ -36,6 +37,11 @@ locals {
     mgmt = [
       "22",
       "3389"
+    ]
+
+    storage_inbound = [
+      "443", # HTTPS for Blob Storage & Management API
+      "445"  # SMB / CIFS for Azure Files
     ]
   }
 
@@ -160,6 +166,17 @@ locals {
           destination_address_prefix = local.address_spaces.mssql
         },
         {
+          name                       = "allow-biz-to-storage"
+          priority                   = 110
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = local.ports.storage_inbound
+          source_address_prefix      = local.address_spaces.biz
+          destination_address_prefix = local.address_spaces.storage
+        },
+        {
           name                       = "allow-outbound-to-firewall"
           priority                   = 200
           direction                  = "Outbound"
@@ -175,10 +192,6 @@ locals {
 
     # -------------------------------------------------
     # MSSQL PRIVATE ENDPOINT NSG
-    #
-    # ONLY BIZ/APP SUBNET CAN ACCESS THIS SUBNET.
-    # ALL PROTOCOLS / ALL PORTS ARE ALLOWED FROM BIZ.
-    # EVERYTHING ELSE IS DENIED.
     # -------------------------------------------------
     mssql = {
       inbound = [
@@ -192,6 +205,53 @@ locals {
           destination_port_range     = "*"
           source_address_prefix      = local.address_spaces.biz
           destination_address_prefix = local.address_spaces.mssql
+        },
+        {
+          name                       = "deny-all-inbound"
+          priority                   = 900
+          direction                  = "Inbound"
+          access                     = "Deny"
+          protocol                   = "*"
+          source_port_range          = "*"
+          destination_port_range     = "*"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+        }
+      ]
+
+      outbound = [
+        {
+          name                       = "deny-all-outbound"
+          priority                   = 900
+          direction                  = "Outbound"
+          access                     = "Deny"
+          protocol                   = "*"
+          source_port_range          = "*"
+          destination_port_range     = "*"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+        }
+      ]
+    }
+
+    # -------------------------------------------------
+    # STORAGE PRIVATE ENDPOINT NSG
+    #
+    # ONLY BIZ/APP SUBNET CAN ACCESS BLOB (443) AND SMB (445).
+    # ALL OTHER INBOUND AND OUTBOUND TRAFFIC IS DENIED.
+    # -------------------------------------------------
+    storage = {
+      inbound = [
+        {
+          name                       = "allow-biz-to-storage"
+          priority                   = 100
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = local.ports.storage_inbound
+          source_address_prefix      = local.address_spaces.biz
+          destination_address_prefix = local.address_spaces.storage
         },
         {
           name                       = "deny-all-inbound"

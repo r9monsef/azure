@@ -48,6 +48,14 @@ locals {
       nsg              = "mssql"
     }
 
+    storage = {
+      name             = "storage-subnet-prd"
+      vnet             = "vnet-prod"
+      address_prefixes = ["10.10.10.0/24"]
+      private          = true
+      nsg              = "storage"
+    }
+
     management = {
       name             = "management-subnet-prd"
       vnet             = "vnet-prod"
